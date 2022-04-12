@@ -1,7 +1,7 @@
 'reach 0.1';
 
-const [ isHand, ROCK, PAPER, SCISSORS ] = makeEnum(3);
-const [ isOutcome, B_WINS, DRAW, A_WINS ] = makeEnum(3);
+const [isHand, ROCK, PAPER, SCISSORS] = makeEnum(3);
+const [isOutcome, B_WINS, DRAW, A_WINS] = makeEnum(3);
 
 const winner = (handAlice, handBob) => ((handAlice + (4 - handBob)) % 3);
 
@@ -10,10 +10,10 @@ assert(winner(PAPER, ROCK) == A_WINS);
 assert(winner(ROCK, ROCK) == DRAW);
 
 forall(UInt, handAlice =>
-    forall(UInt, handBob => 
+    forall(UInt, handBob =>
         assert(isOutcome(winner(handAlice, handBob)))));
 
-forall(UInt, (hand) => 
+forall(UInt, (hand) =>
     assert(winner(hand, hand) == DRAW));
 
 const Player = {
@@ -37,41 +37,56 @@ export const main = Reach.App(() => {
     init();
 
     const informTimeOut = () => {
-        each([Alice, Bob] , () => {
+        each([Alice, Bob], () => {
             interact.informTimeOut();
         });
     };
 
     Alice.only(() => {
         const wager = declassify(interact.wager);
-        const _handAlice = interact.getHand();
-        const [_commitAlice, _saltAlice] = makeCommitment(interact, _handAlice);
-        const commitAlice = declassify(_commitAlice);
         const deadline = declassify(interact.deadline);
     });
-    Alice.publish(wager, commitAlice, deadline).pay(wager);
+    Alice.publish(wager, deadline).pay(wager);
     commit();
 
-    unknowable(Bob, Alice(_handAlice, _saltAlice));
     Bob.only(() => {
         interact.acceptWager(wager);
-        const handBob = declassify(interact.getHand());
     });
-    Bob.publish(handBob).pay(wager).timeout(relativeTime(deadline), () => closeTo(Alice, informTimeOut));
-    commit();
+    Bob.pay(wager).timeout(relativeTime(deadline), () => closeTo(Alice, informTimeOut));
 
-    Alice.only(() => {
-        const saltAlice = declassify(_saltAlice);
-        const handAlice = declassify(_handAlice);
-    });
-    Alice.publish(saltAlice, handAlice).timeout(relativeTime(deadline), () => closeTo(Bob, informTimeOut));
-    checkCommitment(commitAlice, saltAlice, handAlice);
+    var outcome = DRAW;
+    invariant(balance() == 2 * wager && isOutcome(outcome));
+    while (outcome == DRAW) {
+        commit();
 
-    const outcome = (handAlice + (4 - handBob)) % 3;
-    const [forAlice, forBob] =
-        outcome == A_WINS ? [2,0] : outcome == B_WINS ? [0,2] : [1,1];
-    transfer(forAlice * wager).to(Alice);
-    transfer(forBob * wager).to(Bob);
+        Alice.only(() => {
+            const _handAlice = interact.getHand();
+            const [_commitAlice, _saltAlice] = makeCommitment(interact, _handAlice);
+            const commitAlice = declassify(_commitAlice);
+        });
+        Alice.publish(commitAlice).timeout(relativeTime(deadline), () => closeTo(Bob, informTimeOut));
+        commit();
+
+        unknowable(Bob, Alice(_handAlice, _saltAlice));
+        Bob.only(() => {
+            const handBob = declassify(interact.getHand());
+        });
+        Bob.publish(handBob).timeout(relativeTime(deadline), () => closeTo(Alice, informTimeOut));
+        commit();
+
+        Alice.only(() => {
+            const saltAlice = declassify(_saltAlice);
+            const handAlice = declassify(_handAlice);
+        });
+        Alice.publish(saltAlice, handAlice).timeout(relativeTime(deadline), () => closeTo(Bob, informTimeOut));
+        checkCommitment(commitAlice, saltAlice, handAlice);
+
+        outcome = winner(handAlice, handBob);
+        continue;
+    }
+
+    assert(outcome == A_WINS || outcome == B_WINS);
+    transfer(2 * wager).to(outcome == A_WINS ? Alice : Bob);
     commit();
 
     each([Alice, Bob], () => {
