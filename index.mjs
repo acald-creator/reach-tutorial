@@ -13,12 +13,6 @@ const beforeBob = await getBalance(accBob);
 const ctcAlice = accAlice.contract(backend);
 const ctcBob = accBob.contract(backend, ctcAlice.getInfo());
 
-const afterAlice = await getBalance(accAlice);
-const afterBob = await getBalance(accBob);
-
-console.log(`Alice went form ${beforeAlice} to ${afterAlice}.`);
-console.log(`Bobg went from ${beforeBob} to ${afterBob}.`);
-
 const HAND = ['Rock', 'Paper', 'Scissor'];
 const OUTCOME = ['Bob wins', 'Draw', 'Alice wins'];
 const Player = (Who) => ({
@@ -44,3 +38,9 @@ await Promise.all([
         }
     }),
 ]);
+
+const afterAlice = await getBalance(accAlice);
+const afterBob = await getBalance(accBob);
+
+console.log(`Alice went form ${beforeAlice} to ${afterAlice}.`);
+console.log(`Bobg went from ${beforeBob} to ${afterBob}.`);

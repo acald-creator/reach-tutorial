@@ -26,7 +26,7 @@ export const main = Reach.App(() => {
 
     Bob.only(() => {
         interact.acceptWager(wager);
-        const handBob = declassify(interact.getHand());
+        const handBob = (handAlice + 1) % 3;
     });
     Bob.publish(handBob).pay(wager);
 
